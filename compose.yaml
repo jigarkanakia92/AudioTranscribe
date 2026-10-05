@@ -1,0 +1,55 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_PRESIDIO: ${INSTALL_PRESIDIO:-false}
+    image: audiotranscribe:local
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      ASR_API_KEY: ${ASR_API_KEY:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      ASR_BASE_URL: ${ASR_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      ASR_MODEL: ${ASR_MODEL:-nvidia/parakeet-tdt-0.6b-v2}
+      LLM_MODEL: ${LLM_MODEL:-meta/llama-3.3-70b-instruct}
+      DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-en-US}
+      REQUEST_TIMEOUT_SECONDS: ${REQUEST_TIMEOUT_SECONDS:-180}
+      MAX_AUDIO_MB: ${MAX_AUDIO_MB:-25}
+      MAX_NORMALIZED_AUDIO_MB: ${MAX_NORMALIZED_AUDIO_MB:-128}
+      MAX_AUDIO_DURATION_SECONDS: ${MAX_AUDIO_DURATION_SECONDS:-3600}
+      MAX_TRANSCRIPT_CHARS: ${MAX_TRANSCRIPT_CHARS:-50000}
+      PHI_REDACTION_ENABLED: ${PHI_REDACTION_ENABLED:-true}
+      USE_PRESIDIO: ${USE_PRESIDIO:-false}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    read_only: true
+    tmpfs:
+      - "/tmp:rw,noexec,nosuid,size=160m,mode=1777"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
